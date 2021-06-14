@@ -55,7 +55,7 @@ classdef GPSReceiver
             % correlate
             SS = [];            %SignalStrength
             for ff = 1:length(fvec)
-                mixedSignal = sig(:)' .* exp(1j * 2* pi * fvec(ff) .* t );
+                mixedSignal = sig(:).' .* exp(-1j * 2* pi * fvec(ff) .* t );
                 IN  = fft( mixedSignal);
                 CA  = fft( ca( prns, : ) ,[],2);
                 OUT = IN .* conj(CA);

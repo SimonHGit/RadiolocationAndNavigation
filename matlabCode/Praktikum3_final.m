@@ -31,6 +31,8 @@ clc
     gpsr.fvec = fvec;
     
     gpsr = gpsr.acquire(sig);
+    
+    %evaluation
     SV_table = gpsr.visibleSVs()
     gpsr.plotAmbiguity(gpsr.visiblePRN)
     
