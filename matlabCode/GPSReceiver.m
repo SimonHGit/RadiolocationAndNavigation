@@ -52,18 +52,26 @@ classdef GPSReceiver
             nSamples = length(sig);
             t = ( 1:nSamples ) / fs ;
             obj.tau = ((-nSamples/2+1):nSamples/2)/fs;
+            nPrns = size(ca,1);
+            
             % correlate
-            SS = [];            %SignalStrength
+            if size(ca,2)<length(sig)
+                %ca = [ca zeros(nPrns,length(sig)-size(ca,2))];
+                ca = repmat(ca,1,length(sig)/size(ca,2));
+            end
+            SS = zeros(length(fvec),length(sig),nPrns);            %SignalStrength
+            
+            tic
             for ff = 1:length(fvec)
                 mixedSignal = sig(:).' .* exp(-1j * 2* pi * fvec(ff) .* t );
                 IN  = fft( mixedSignal);
                 CA  = fft( ca( prns, : ) ,[],2);
                 OUT = IN .* conj(CA);
-                for sv = 1:size(CA,1)
+                for sv = 1:nPrns
                     SS( ff, :, sv ) = abs( ifft( OUT( sv, : ) , [], 2 ) ) .^ 2;
                 end
             end
-            
+            toc
             corrTHD = obj.corrTHD;
             visiblePRN =[];
             codeshift =[];

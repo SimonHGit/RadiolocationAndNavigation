@@ -3,7 +3,7 @@ clear
 clc
 
 
-%% Einführung in die Software u-center
+%% Einfï¿½hrung in die Software u-center
     dir     = 'D:\Studium\Faecher\Master\27_OrtungUndNavigation\03_Praktikum\RadiolocationAndNavigation\Graphics\';
     fName   = {'V2_Watch.png',...
                'V2_SkyPlot.png',...
