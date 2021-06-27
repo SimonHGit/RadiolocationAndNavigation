@@ -21,6 +21,12 @@ classdef GPSReceiver
         visiblePRN 
         codeshift
         doppler
+        
+        
+        preamble = [1 -1 -1 -1 1 -1 1 1 ]; %
+        ephimeris 
+        Frames
+        
     end
     
     methods
@@ -61,7 +67,7 @@ classdef GPSReceiver
             end
             SS = zeros(length(fvec),length(sig),nPrns);            %SignalStrength
             
-            tic
+            
             for ff = 1:length(fvec)
                 mixedSignal = sig(:).' .* exp(-1j * 2* pi * fvec(ff) .* t );
                 IN  = fft( mixedSignal);
@@ -71,7 +77,7 @@ classdef GPSReceiver
                     SS( ff, :, sv ) = abs( ifft( OUT( sv, : ) , [], 2 ) ) .^ 2;
                 end
             end
-            toc
+            
             corrTHD = obj.corrTHD;
             visiblePRN =[];
             codeshift =[];
@@ -113,6 +119,98 @@ classdef GPSReceiver
             end
         end
         
+        function bitStream = processBitStream(obj,I_P)
+            flips = abs(diff(I_P));     %logic changes
+            firstFlip = find(flips > 4e3,1);
+            nIntgrSampl = 20;
+            %get first and last sample
+            iStart = mod(firstFlip,nIntgrSampl);
+            iStop = floor((length(I_P)-iStart)/nIntgrSampl)*nIntgrSampl+iStart-1;
+            I_P = I_P(iStart:iStop);
+            integrated = reshape(I_P,[nIntgrSampl, length(I_P)/nIntgrSampl]);
+            integrated = sum(integrated,1);
+
+            bitStream_integr = integrated;
+            bitStream(bitStream_integr>0)  = true;
+            bitStream(bitStream_integr<=0) = false;
+        end
+        
+        function subframeIndx = getPreamblePos(obj,bitStream_bool)
+            bitStream_signum = 1*bitStream_bool - 1*~bitStream_bool;
+            [ correlated , lag ] = xcorr(bitStream_signum , obj.preamble );
+            %find pattern matches
+            [ ~ , subFrameIndx ] = findpeaks( correlated, lag, 'MinPeakHeight', 7);
+            %compute distance to each matching
+            Distance = subFrameIndx' - subFrameIndx;
+            %get matches with distance of 300 bit
+            [~,c1] = find( Distance == 300 );
+            [~,c2] = find( Distance == -300 , 1, 'last');
+            subframeIndx = subFrameIndx( [c1; c2] ) + 1;
+        end
+        
+        function obj = decode(obj,bitStream_bool,subframeIndx)
+            for iFrame = 1
+                eph = struct();
+                for iSubframe = 1:6
+                   %1-3 Ephimerides
+                   %4 - Ionosphaere, Timecorrection, Almanach(prn>=25)
+                   %5 - Almanach(prn<25)
+                   d = bitStream_bool( (iFrame-1)*1500 + subframeIndx(iSubframe):(subframeIndx(iSubframe+1)-1)   );
+
+                   %TLM telemetry word
+                   paeamble = d(1:8);
+                   D30 = d([30:30:270]);
+                   D = xor(d,[repelem([false D30],30)]);
+
+                   %HOW hand over word
+                   %how.TOW_CM          = D(31:47);  %tow-count message (truncated)
+                   %how.momentumFlag    = D(48);
+                   %how.syncronisationFlag = D(49);
+                   how.subFrameID = logical2dec(D(50:52));
+                   %how.parityStuff = stream(23); 
+                   how.Parity = D(55:60);
+                   switch how.subFrameID
+                      case 1
+                          eph.WeekNo        = logical2dec( D( 61:70 )            );
+                          eph.satHealth     = logical2dec( D( 77:82 )            );
+                          eph.IODC          = logical2dec( D( [83:84 211:218])   );
+                          eph.T_GD          = logical2dec( D( 197:204 )          ) * 2^-31; 
+                          eph.t_OC          = logical2dec( D( 219:234 )          ) * 2^4;
+                          eph.a_f2          = logical2dec( D( 241:248 )          ) * 2^-55;
+                          eph.a_f1          = logical2dec( D( 249:264 )          ) * 2^-43;
+                          eph.a_f0          = logical2dec( D( 271:292 )          ) * 2^-31;
+                      case 2 
+                          eph.IODE      = logical2dec( D( 61:68 )            ); %??????????????????
+                          eph.crs       = logical2dec( D(  69:84 )           ) * 2^-15;
+                          eph.deltan    = logical2dec( D( 91:106 )           ) * 2^-43;   
+                          eph.M0        = logical2dec( D( [107:114 121:144] )) * 2^-31;
+                          eph.cuc       = logical2dec( D( 151:166 )          ) * 2^-29;
+                          eph.ecc       = logical2dec( D( [167:174 181:204] )) * 2^-33;
+                          eph.cus       = logical2dec( D( 211:226 )          ) * 2^-29;
+                          eph.roota     = logical2dec( D( [227:234 241:264] )) * 2^-19;
+                          eph.toe       = logical2dec( D( 271:286 )          ) * 2^4;
+                      case 3 
+                          eph.cic       = logical2dec( D( 61:86 )            ) * 2^-29;
+                          eph.Omega0    = logical2dec( D( [77:84 91:114] )   ) * 2^-31;
+                          eph.cis       = logical2dec( D( 121:136 )          ) * 2^-29;
+                          eph.i0        = logical2dec( D( [137:144 151:174] )) * 2^-31;
+                          eph.crc       = logical2dec( D( 181:196 )          ) * 2^-5;
+                          eph.omega     = logical2dec( D( [197:204 211:234] )) * 2^-31;
+                          eph.Omegadot  = logical2dec( D( 241:264 )          ) * 2^-43;
+                          eph.IODE      = logical2dec( D( 271:278 ));%??????????????????
+                          eph.idot      = logical2dec( D( 279:292 )          ) * 2^-43;
+                      case 4
+                      case 5
+                      otherwise
+                   end
+                end
+                %Frames(iFrame) = struct('how',how,'eph',eph);
+                obj.ephimeris = eph;
+            end
+        end
+        
+        
+        
         
         % set methods
         function obj = set.fs(obj,x)
@@ -150,6 +248,9 @@ classdef GPSReceiver
         end
         function obj = set.doppler(obj,x)
             obj.doppler = x;
+        end
+        function obj = set.ephimeris(obj,x)
+            obj.ephimeris = x;
         end
     end
     
