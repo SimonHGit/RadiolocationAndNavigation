@@ -1,7 +1,6 @@
 function [ phi,lambda,h ] = cart2geo( x,y,z )
 %C2G Summary of this function goes here
-%   Schreiben Sie eine MATLAB-Funktion (dec2dez.m) die aus der Darstellung in Grad,
-%   Minuten, Sekunden (plus Nachkommastellen) die Darstellung in Grad und Dezimalstellen berechnet.
+%   Entwickeln Sie die [...] Funktion (c2g.m), die kartesische Koordinaten in geografische Koordinaten transformiert.
 
     %WGS system:
     a = 6378137;%m
