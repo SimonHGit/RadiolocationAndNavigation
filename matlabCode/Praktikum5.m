@@ -4,7 +4,6 @@ c = 3e8;
 % load files 
 directory = 'D:\Studium\Faecher\Master\27_OrtungUndNavigation\03_Praktikum\RadiolocationAndNavigation\Data\';
 
-%load( [directory '.mat'] ) %
 %set: 
 % svPos: Satellitenpositionen zum Messzeitpunkt
 % xhat : erste geschätzte Position
@@ -12,34 +11,34 @@ directory = 'D:\Studium\Faecher\Master\27_OrtungUndNavigation\03_Praktikum\Radio
 % svPos : Satellitenpositionen zum Messzeitpunkt
 run([directory 'set_vars.m'])
 
-% Geometriematrix H:
-
-delta_x = zeros(4,1);
-
 %userposition
 x = xhat';
-% x = [1 2 3 4]';
+%  x = 6e6*[1 2 3 4]';
 
 for indx = 1:20
     % actual pseudorange 
-    pr_ = sqrt( sum( ( svPos - x(1:end-1).' ).^2 , 2 ) ) ;
+    pr_ = sqrt( sum( ( svPos - x(1:end-1).' ).^2 , 2 ) ) ; %norm der pseudorange
     % difference to target pseudorange
     delta_pr = pr - pr_;
     % derivates
     H = jacobiMtrx( svPos , x , pr_);
     % new position
-    delta_x = inv(H) * delta_pr;
+    %seudiinverse
+    H_pseudo = inv(H.' * H) * H.';
+    delta_x = H_pseudo * delta_pr ;
     x = x + delta_x;
     %history
     x_hist = [x_hist, x(1:3)];
 end
 
 figure(1)
-plot3(x_hist(1,sss:end),x_hist(2,sss:end),x_hist(3,sss:end),'.')
+sss = 1 ;
+plot3(x_hist(1,sss:end),x_hist(2,sss:end),x_hist(3,sss:end),'.-')
 hold on
 plot3(svPos(:,1),svPos(:,2),svPos(:,3),'*')
 hold off
 
+[p,l,h] = cart2geo(x(1),x(2),x(3))
 
 
 function H = jacobiMtrx( X , xu_ , r_)
