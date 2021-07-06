@@ -5,6 +5,6 @@ function plotWorld()
     e = sqrt(2*f-f^2);
 
     [X,Y,Z] = ellipsoid(0,0,0,a, a, a*(1-f));
-    surf(X,Y,Z)
+    surf(X,Y,Z,'FaceAlpha',0.5,'EdgeColor','none')
 
 end
