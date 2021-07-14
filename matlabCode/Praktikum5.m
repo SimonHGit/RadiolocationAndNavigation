@@ -1,9 +1,24 @@
 close all ; clear ; clc
-x_hist = []
+
+
+
+x_hist = [];
 c = 3e8;
 mu = 0.1;
 
 %Data 
+
+%% Daten f�r das Beispiel mit 4 Satelliten
+% % Satellitenpositionen zum Messzeitpunkt
+% svPos = [22808160.9 -12005866.6  -6609526.5;
+%          21141179.5  -2355056.3 -15985716.1;
+%          20438959.3  -4238967.1  16502090.2;
+%          18432296.2 -18613382.5  -4672400.8];
+% % Gemessene Pseudoranges rho
+% pr = [21480623.3 21971919.2 22175603.9 22747561.5]';
+
+
+%% Daten f�r das Beispiel mit 7 Satelliten
 % Satellitenpositionen zum Messzeitpunkt
 svPos = [22808160.9 -12005866.6  -6609526.5;
          21141179.5  -2355056.3 -15985716.1;
@@ -22,21 +37,21 @@ x = 1e7*[-1 1 1 0 ]';
 
 for indx = 1:200
     % actual pseudorange 
-    pr_ = sqrt( sum( ( svPos - x(1:end-1).' ).^2 , 2 ) ) ; %norm der pseudorange
+    pr_ = sqrt( sum( ( svPos - x(1:end-1).' ).^2 , 2 ) ) + x(4) ; %norm der pseudorange
     % difference to target pseudorange
     delta_pr = pr - pr_;
     % derivates
     H = jacobiMtrx( svPos , x , pr_);
     % new position
-    %seudiinverse
+    %pseudiinverse
     H_pseudo = inv(H.' * H) * H.';
     delta_x = H_pseudo * delta_pr * mu;
     x = x + delta_x;
     %history
-    x_hist = [x_hist, x(1:3)];
+    x_hist = [x_hist, x];
 end
 
-[lat,long,height] = cart2geo(x(1),x(2),x(3))
+[lat,long,height] = cart2geo(x(1),x(2),x(3));
 
 %% graphics
 figure(1)
@@ -46,6 +61,9 @@ plot3(svPos(:,1),svPos(:,2),svPos(:,3),'*')
 plotWorld();
 hold off
 
+grid on
+axis equal
+
 %% used function
 function H = jacobiMtrx( X , xu_ , r_)
     nSat = size(X,1);
@@ -54,5 +72,5 @@ function H = jacobiMtrx( X , xu_ , r_)
         b(k,1) =  -( X(k,2) - xu_(2) ) / r_( k );
         c(k,1) =  -( X(k,3) - xu_(3) ) / r_( k );
     end
-    H = [a b c ones(nSat,1)];
+    H = [a b c 3e8*ones(nSat,1)];
 end
