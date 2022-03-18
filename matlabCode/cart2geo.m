@@ -1,7 +1,12 @@
 function [ phi,lambda,h ] = cart2geo( x,y,z )
 %C2G Summary of this function goes here
 %   Entwickeln Sie die [...] Funktion (c2g.m), die kartesische Koordinaten in geografische Koordinaten transformiert.
-
+    
+    if nargin == 1
+        z = x(3);
+        y = x(2);
+        x = x(1);
+    end
     %WGS system:
     a = 6378137;%m
     f = 1/298.257;
